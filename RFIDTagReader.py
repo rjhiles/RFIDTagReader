@@ -58,10 +58,7 @@ class TagReader:
         :param doCheckSum: set to calculate the checksum on each tag read
         :param timeOutSecs:sets time out value. Use None for no time out, won't return until a tag has ben read
         """
-        tag_in_range_pin = 23
-        self.TIRpin = tag_in_range_pin
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(tag_in_range_pin, GPIO.IN)
+        self.TIRpin = 23
         self.dataSize = 16
     # initialize serial port
         serial_port = '/dev/ttyS0'
@@ -73,8 +70,6 @@ class TagReader:
         if not self.serialPort.isOpen():
             self.serialPort.open()
         self.serialPort.flushInput()
-        GPIO.add_event_detect(tag_in_range_pin, GPIO.BOTH)
-        GPIO.add_event_callback(tag_in_range_pin, self.readTag)
 
     def clearBuffer(self):
         """
@@ -157,8 +152,6 @@ class TagReader:
         global globalReader
         globalReader = self
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(tag_in_range_pin, GPIO.IN)
-        self.TIRpin = tag_in_range_pin
         GPIO.add_event_detect(tag_in_range_pin, GPIO.BOTH)
         GPIO.add_event_callback(tag_in_range_pin, callBackFunc)
 

@@ -9,36 +9,37 @@ Last Modified:
 """
 
 from RFIDTagReader import TagReader
+import RPi.GPIO as GPIO
 
-"""
-Change serialPort to wherever your tagreader is
-and kind to 'ID' for ID-L3,12,20 etc. or RDM for RDM630 etc.
-"""
-RFID_serialPort = '/dev/ttyUSB0'
-#RFID_serialPort = '/dev/serial0'
-#RFID_serialPort='/dev/cu.usbserial-AL00ES9A'
-RFID_kind = 'ID'
+
 """
 Setting to timeout to None means we don't return till we have a tag.
 If a timeout is set and no tag is found, 0 is returned.
 """
-RFID_timeout = None
-RFID_doCheckSum = True
-nReads =5
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(23, GPIO.IN)
+reader = TagReader()
 
-try:
-    tagReader = TagReader (RFID_serialPort, RFID_doCheckSum, timeOutSecs = RFID_timeout, kind=RFID_kind)
-except Exception as e:
-    raise e
-i =0
-print ('Waiting for tags...')
-while i < nReads:
+
+def read_tag():
     try:
-        tag = tagReader.readTag ()
-        print (tag)
-        i += 1
+        tag = reader.readTag()
+        print(tag)
+        while True:
+            if not GPIO.input(23):
+                print('outro')
+                break
+        read_tag()
+
     except ValueError as e:
-        print (str (e))
-        tagReader.clearBuffer()
-print ('Read ' + str (nReads) + ' tags')
+        print(str(e))
+        reader.clearBuffer()
+    except KeyboardInterrupt:
+        GPIO.remove_event_detect(23)
+        GPIO.cleanup()
+
+
+if __name__ ==  "__main__":
+    read_tag()
+
 
