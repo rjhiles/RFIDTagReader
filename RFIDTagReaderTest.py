@@ -25,19 +25,20 @@ def read_tag():
     try:
         tag = reader.readTag()
         print(tag)
-        while True:
-            if not GPIO.input(23):
-                print('outro')
-                break
-        read_tag()
-
+        wait_for_tag_exit()
     except ValueError as e:
         print(str(e))
         reader.clearBuffer()
     except KeyboardInterrupt:
-        GPIO.remove_event_detect(23)
         GPIO.cleanup()
 
+def wait_for_tag_exit():
+    try:
+        while True:
+            if not GPIO.input(23):
+                print('Tag has left')
+    except KeyboardInterrupt:
+        GPIO.cleanup()
 
 if __name__ ==  "__main__":
     read_tag()
