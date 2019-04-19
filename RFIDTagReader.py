@@ -51,36 +51,29 @@ class TagReader:
     frequency somewhere between 1 and 2 Hz.
     
     """
-    def __init__(self, serialPort, doChecksum=False, timeOutSecs=None, kind='ID'):
+    def __init__(self):
         """
         Makes a new RFIDTagReader object
         :param serialPort:serial port tag reader is attached to, /dev/ttyUSB0 or /dev/ttyAMA0 for instance
         :param doCheckSum: set to calculate the checksum on each tag read
         :param timeOutSecs:sets time out value. Use None for no time out, won't return until a tag has ben read
-        :param kind:the kind of tag reader used, either ID for ID-Innovations reader, or RDM 
         """
-    # set data size based on kind paramater, for extra termination characters for ID tag readers
-        if kind == 'RDM':
-            self.kind = 'RDM'
-            self.dataSize=14
-        elif kind == 'ID':
-            self.kind = 'ID'
-            self.dataSize = 16
-            self.TIRpin = 0
-    # set field for time out seconds for reading serial port, None means no time out
-        self.timeOutSecs = timeOutSecs
-    # set boolean for doing checksum on each read
-        self.doCheckSum = bool(doChecksum)
+        tag_in_range_pin = 23
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(tag_in_range_pin, GPIO.IN)
+        self.dataSize = 16
     # initialize serial port
-        self.serialPort = None
+        serial_port = '/dev/ttyS0'
         try:
-            self.serialPort = serial.Serial(str (serialPort), baudrate=9600, timeout=timeOutSecs)
+            self.serialPort = serial.Serial(serial_port, baudrate=9600)
         except Exception as anError:
             print("Error initializing TagReader serial port.." + str(anError))
             raise anError
         if not self.serialPort.isOpen():
             self.serialPort.open()
         self.serialPort.flushInput()
+        GPIO.add_event_detect(tag_in_range_pin, GPIO.BOTH)
+        GPIO.add_event_callback(tag_in_range_pin, self.readTag())
 
     def clearBuffer(self):
         """
@@ -101,7 +94,7 @@ class TagReader:
         what is near the tagReader right now, not what may have passed by in the past.
         """
         # try to read a single byte with requested timeout, which may be no timeout
-        self.serialPort.timeout = self.timeOutSecs
+        self.serialPort.timeout = 0.25
         tag = self.serialPort.read(size=1)
         # if there is a timeout with no data, return 0
         if tag == b'':
@@ -122,16 +115,13 @@ class TagReader:
             decVal = int(tag[0:10], 16)
         except ValueError:
             self.serialPort.flushInput()
-            raise ValueError ("TagReader Error converting tag to integer: ", tag)
+            raise ValueError("TagReader Error converting tag to integer: ", tag)
         else:
-            if self.doCheckSum:
-                if self.checkSum(tag[0:10], tag[10:12]):
-                    return decVal
-                else:
-                    self.serialPort.flushInput()
-                    raise ValueError("TagReader checksum error: ", tag, ' : ', tag[10:12])
-            else:
+            if self.checkSum(tag[0:10], tag[10:12]):
                 return decVal
+            else:
+                self.serialPort.flushInput()
+                raise ValueError("TagReader checksum error: ", tag, ' : ', tag[10:12])
 
     def checkSum(self, tag, checkSum):
         """
@@ -162,14 +152,13 @@ class TagReader:
         You can install your own callback, as long as it uses RFIDTagReader.globalReader 
         and only references RFIDTagReader.globalTag  and other global variables and objects.
         """
-        if self.kind == 'ID':
-            global globalReader
-            globalReader = self
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(tag_in_range_pin, GPIO.IN)
-            self.TIRpin = tag_in_range_pin
-            GPIO.add_event_detect(tag_in_range_pin, GPIO.BOTH)
-            GPIO.add_event_callback(tag_in_range_pin, callBackFunc)
+        global globalReader
+        globalReader = self
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(tag_in_range_pin, GPIO.IN)
+        self.TIRpin = tag_in_range_pin
+        GPIO.add_event_detect(tag_in_range_pin, GPIO.BOTH)
+        GPIO.add_event_callback(tag_in_range_pin, callBackFunc)
 
     def removeCallback(self):
         GPIO.remove_event_detect(self.TIRpin)
