@@ -59,6 +59,7 @@ class TagReader:
         :param timeOutSecs:sets time out value. Use None for no time out, won't return until a tag has ben read
         """
         tag_in_range_pin = 23
+        self.TIRpin = tag_in_range_pin
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(tag_in_range_pin, GPIO.IN)
         self.dataSize = 16
@@ -73,7 +74,7 @@ class TagReader:
             self.serialPort.open()
         self.serialPort.flushInput()
         GPIO.add_event_detect(tag_in_range_pin, GPIO.BOTH)
-        GPIO.add_event_callback(tag_in_range_pin, self.readTag())
+        GPIO.add_event_callback(tag_in_range_pin, self.readTag)
 
     def clearBuffer(self):
         """
@@ -118,6 +119,7 @@ class TagReader:
             raise ValueError("TagReader Error converting tag to integer: ", tag)
         else:
             if self.checkSum(tag[0:10], tag[10:12]):
+                print("woot")
                 return decVal
             else:
                 self.serialPort.flushInput()
@@ -170,6 +172,7 @@ class TagReader:
         """
         if self.serialPort is not None:
             self.serialPort.close()
-        if self.kind == 'ID' and self.TIRpin != 0:
+        if self.TIRpin != 0:
             GPIO.remove_event_detect(self.TIRpin)
             GPIO.cleanup(self.TIRpin)
+
