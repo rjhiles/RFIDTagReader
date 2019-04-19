@@ -90,7 +90,7 @@ class TagReader:
         what is near the tagReader right now, not what may have passed by in the past.
         """
         # try to read a single byte with requested timeout, which may be no timeout
-        self.serialPort.timeout = 0.25
+        self.serialPort.timeout = None
         tag = self.serialPort.read(size=1)
         # if there is a timeout with no data, return 0
         if tag == b'':

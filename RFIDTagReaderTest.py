@@ -35,7 +35,7 @@ def read_tag():
 def wait_for_tag_exit():
     try:
         while True:
-            if not GPIO.input(23):
+            if GPIO.input(23):
                 print('Tag has left')
     except KeyboardInterrupt:
         GPIO.cleanup()
