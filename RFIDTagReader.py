@@ -18,16 +18,19 @@ Setting tag to 0 means no tag is presently in range of the reader
 """
 globalTag = 0
 globalReader = None
-def tagReaderCallback (channel):
+
+
+def tagReaderCallback(channel):
     global globalTag # the global indicates that it is the same variable declared above
-    if GPIO.input (channel) == GPIO.HIGH: # tag just entered
+    if GPIO.input(channel) == GPIO.HIGH: # tag just entered
         try:
-            globalTag = globalReader.readTag ()
+            globalTag = globalReader.readTag()
         except Exception as e:
             globalTag = 0
     else:  # tag just left
         globalTag = 0
         globalReader.clearBuffer()
+
 
 class TagReader:
     """
@@ -48,7 +51,7 @@ class TagReader:
     frequency somewhere between 1 and 2 Hz.
     
     """
-    def __init__(self, serialPort, doChecksum = False, timeOutSecs = None, kind='ID'):
+    def __init__(self, serialPort, doChecksum=False, timeOutSecs=None, kind='ID'):
         """
         Makes a new RFIDTagReader object
         :param serialPort:serial port tag reader is attached to, /dev/ttyUSB0 or /dev/ttyAMA0 for instance
@@ -56,7 +59,7 @@ class TagReader:
         :param timeOutSecs:sets time out value. Use None for no time out, won't return until a tag has ben read
         :param kind:the kind of tag reader used, either ID for ID-Innovations reader, or RDM 
         """
-	# set data size based on kind paramater, for extra termination characters for ID tag readers
+    # set data size based on kind paramater, for extra termination characters for ID tag readers
         if kind == 'RDM':
             self.kind = 'RDM'
             self.dataSize=14
@@ -64,29 +67,28 @@ class TagReader:
             self.kind = 'ID'
             self.dataSize = 16
             self.TIRpin = 0
-	# set field for time out seconds for reading serial port, None means no time out 
+    # set field for time out seconds for reading serial port, None means no time out
         self.timeOutSecs = timeOutSecs
-	# set boolean for doing checksum on each read
+    # set boolean for doing checksum on each read
         self.doCheckSum = bool(doChecksum)
-	# initialize serial port
+    # initialize serial port
         self.serialPort = None
         try:
             self.serialPort = serial.Serial(str (serialPort), baudrate=9600, timeout=timeOutSecs)
         except Exception as anError:
-            print ("Error initializing TagReader serial port.." + str (anError))
+            print("Error initializing TagReader serial port.." + str(anError))
             raise anError
-        if (self.serialPort.isOpen() == False):
+        if not self.serialPort.isOpen():
             self.serialPort.open()
         self.serialPort.flushInput()
-        
 
-    def clearBuffer (self):
+    def clearBuffer(self):
         """
         Clears the serial inout buffer for the serialport used by the tagReader
         """
         self.serialPort.flushInput()
 
-    def readTag (self):
+    def readTag(self):
         """
         Reads a hexidecimal RFID tag from the serial port and returns the decimal equivalent
 
@@ -100,55 +102,57 @@ class TagReader:
         """
         # try to read a single byte with requested timeout, which may be no timeout
         self.serialPort.timeout = self.timeOutSecs
-        tag=self.serialPort.read(size=1)
-        if (tag == b''): #if there is a timeout with no data, return 0
+        tag = self.serialPort.read(size=1)
+        # if there is a timeout with no data, return 0
+        if tag == b'':
             return 0
-        elif (tag == b'\x02'): # if we read code for start of tag, read rest of tag with short timeout
+        # if we read code for start of tag, read rest of tag with short timeout
+        elif tag == b'\x02':
             self.serialPort.timeout = 0.025
             tag=self.serialPort.read(size=self.dataSize -1)
-        else: # bad data. flush input buffer
+        # bad data. flush input buffer
+        else:
             self.serialPort.flushInput()
             raise ValueError ('First character in tag was not \'\\x02\'')
-        if tag.__len__() < self.dataSize -1  : # the read timed out with not enough data for a tag, so return 0
+        # the read timed out with not enough data for a tag, so return 0
+        if tag.__len__() < self.dataSize - 1:
             self.serialPort.flushInput()
-            raise ValueError ('Not enough data in the buffer for a complete tag')
+            raise ValueError('Not enough data in the buffer for a complete tag')
         try:
-            decVal = int(tag [0:10], 16)
+            decVal = int(tag[0:10], 16)
         except ValueError:
             self.serialPort.flushInput()
             raise ValueError ("TagReader Error converting tag to integer: ", tag)
         else:
-            if self.doCheckSum == True:
-                if self.checkSum(tag [0:10], tag [10:12])== True:
+            if self.doCheckSum:
+                if self.checkSum(tag[0:10], tag[10:12]):
                     return decVal
                 else:
                     self.serialPort.flushInput()
-                    raise ValueError ("TagReader checksum error: ", tag, ' : ' , tag [10:12])
+                    raise ValueError("TagReader checksum error: ", tag, ' : ', tag[10:12])
             else:
                 return decVal
 
-
     def checkSum(self, tag, checkSum):
         """
-	Sequentially XOR-ing 2 byte chunks of the 10 byte tag value will give the 2-byte check sum
+    Sequentially XOR-ing 2 byte chunks of the 10 byte tag value will give the 2-byte check sum
 
-	:param tag: the 10 bytes of tag value
-	:param checksum: the two bytes of checksum value
-	:returns: True if check sum calculated correctly, else False
+    :param tag: the 10 bytes of tag value
+    :param checksum: the two bytes of checksum value
+    :returns: True if check sum calculated correctly, else False
         """
         checkedVal = 0
         try:
             for i in range (0,5):
-                checkedVal = checkedVal ^ int(tag [(2 * i) : (2 * (i + 1))], 16)
+                checkedVal = checkedVal ^ int(tag[(2 * i): (2 * (i + 1))], 16)
             if checkedVal == int(checkSum, 16):
                 return True
             else:
                 return False
         except Exception as e:
-            raise e ("checksum error")
-        
+            raise e("checksum error")
 
-    def installCallback (self, tag_in_range_pin, callBackFunc = tagReaderCallback):
+    def installCallback(self, tag_in_range_pin, callBackFunc=tagReaderCallback):
         """
         Installs a threaded call back for the tag reader, the default callback function
         being tagReaderCallback.  tagReaderCallback uses the global references globalReader for
@@ -161,18 +165,15 @@ class TagReader:
         if self.kind == 'ID':
             global globalReader
             globalReader = self
-            GPIO.setmode (GPIO.BCM)
-            GPIO.setup (tag_in_range_pin, GPIO.IN)
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(tag_in_range_pin, GPIO.IN)
             self.TIRpin = tag_in_range_pin
-            GPIO.add_event_detect (tag_in_range_pin, GPIO.BOTH)
-            GPIO.add_event_callback (tag_in_range_pin, callBackFunc)
+            GPIO.add_event_detect(tag_in_range_pin, GPIO.BOTH)
+            GPIO.add_event_callback(tag_in_range_pin, callBackFunc)
 
-
-    def removeCallback (self):
-        GPIO.remove_event_detect (self.TIRpin)
+    def removeCallback(self):
+        GPIO.remove_event_detect(self.TIRpin)
         GPIO.cleanup(self.TIRpin)
-        
-            
     
     def __del__(self):
         """
@@ -181,7 +182,5 @@ class TagReader:
         if self.serialPort is not None:
             self.serialPort.close()
         if self.kind == 'ID' and self.TIRpin != 0:
-            GPIO.remove_event_detect (self.TIRpin)
-            GPIO.cleanup (self.TIRpin)
-
-    
+            GPIO.remove_event_detect(self.TIRpin)
+            GPIO.cleanup(self.TIRpin)
