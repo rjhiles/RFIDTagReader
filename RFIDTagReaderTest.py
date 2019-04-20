@@ -10,15 +10,18 @@ Last Modified:
 
 from RFIDTagReader import TagReader
 import RPi.GPIO as GPIO
-
+from time import sleep
 
 """
 Setting to timeout to None means we don't return till we have a tag.
 If a timeout is set and no tag is found, 0 is returned.
 """
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(23, GPIO.IN)
-reader = TagReader()
+
+
+
+
+def exito():
+        print("out")
 
 
 def read_tag():
@@ -34,13 +37,20 @@ def read_tag():
 
 def wait_for_tag_exit():
     try:
+        sleep(1)
         while True:
-            if GPIO.input(23):
+            i = GPIO.input(21)
+            if not i:
                 print('Tag has left')
+                break
+        read_tag()
     except KeyboardInterrupt:
         GPIO.cleanup()
 
 if __name__ ==  "__main__":
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(21, GPIO.IN)
+    reader = TagReader()
     read_tag()
 
 
